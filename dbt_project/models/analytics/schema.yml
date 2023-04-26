@@ -1,0 +1,19 @@
+
+version: 2
+
+models:
+  - name: order_summary
+    description: "Orders summarized by location"
+    columns:
+      - name: location
+        description: "Where was the order places"
+        tests:
+          - unique
+          - not_null
+      - name: count
+        description: "The number of orders"
+  - name: customer_summary
+    description: "Customer count"
+    columns:
+      - name: count
+        description: "How many do we have"
