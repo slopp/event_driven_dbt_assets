@@ -10,7 +10,7 @@ The data platform manages assets that look like this:
 
 ![asset catalog](assets.png)
 
-There are two data sources (`customers` and `orders`) that are updated by external events. Dagster represents these as `SourceAssets`. Dagster runs a job every minute to check if these source assets have been updated. This check could consist of reading a file mtime, pulling events from a Kafka topic, or any check of external state. This job then logs `AssetObservations` for the source asset based on the results of these checks. If a source has new data, Dagster represents this by marking the relevant downstream assets with a "Upstream data" indicator. In this way, Dagster can use an *event driven* paradigm to track sources.
+There are two data sources (`source_customers` and `source_orders`) that are updated by external events. Dagster represents these as `SourceAssets`. Dagster runs a job every minute to check if these source assets have been updated. This check could consist of reading a file mtime, pulling events from a Kafka topic, or any check of external state. This job then logs `AssetObservations` for the source asset based on the results of these checks. If a source has new data, Dagster represents this by marking the relevant downstream assets with a "Upstream data" indicator. In this way, Dagster can use an *event driven* paradigm to track sources.
 
 Once an event has been tracked and Dagster is aware of the new upstream data there are two options for how to respond. The rest of the data platform could be updated immediately, or Dagster could wait to incorporate the new upstream data until the stakeholders need it based on their expectations for data freshness.
 
