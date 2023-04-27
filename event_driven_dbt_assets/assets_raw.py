@@ -4,7 +4,10 @@ from typing import List
 
 SOURCES = ["customers", "orders"]
 
-source_assets = [SourceAsset(key=f"source_{s}", io_manager_key="csv_reader", description=f"source asset for {s}") for s in SOURCES]
+def fake_obs():
+    pass
+
+source_assets = [SourceAsset(key=f"source_{s}", io_manager_key="csv_reader", description=f"source asset for {s}",observe_fn=fake_obs) for s in SOURCES]
 
 def asset_factory(source: str) -> asset:
     """ Given a source, create an asset representing a loaded table for the source """
