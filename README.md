@@ -36,9 +36,9 @@ Navigate to `Deployment` and then `Daemons` and turn on the Auto-materializing d
 
 At first all of the assets will be un-materialized, and so a run will be launched to fill in the data.
 
-The scheduled job will run every minute and observe the source assets. You can see these asset observations in the asset catalog. Most of the job runs will record the same "data version" indicating that the source data in unchanged. However, if for example you edit the csv file `source_data/orders.csv` then:
+The scheduled job will run every minute and observe the source assets. You can see these asset observations in the asset catalog. Most of the job runs will record the same "data version" indicating that the source data in unchanged. However, if you edit the csv file `source_data/orders.csv` then:
 
-1. The job will observe this change and you will see an Asset Observation for `source_orders` with a new "data version".  
+1. The job will observe this change and you will see an asset observation for `source_orders` with a new "data version".  
 
 2. Dagster will mark the downstream assets `orders` and `orders_summary` with the indicator "Upstream data". 
 
@@ -50,11 +50,16 @@ The scheduled job will run every minute and observe the source assets. You can s
 
 This project uses a few patterns that are worth calling out. This project has the structure: 
 
-- CSV source data: represented as source assets [`source_orders`, `source_customers`]
-- Raw extracted and loaded data: represented as assets [`orders`, `customers`]. The extract and load is done through pandas + IO managers, and the results become a dbt source. The extract is handled by the source asset's IO manager `resources.CSVIOManager.load_input` which creates a pandas dataframe that is then loaded using the asset's IO manager `DagsterDuckDBPandasIOManager.handle_output`
-- Transformed data: represented as an asset via the dagster-dbt integration [`orders_summary`, `customers_summary`], transformations done through dbt
+- CSV source data: represented as the source assets `source_orders`, `source_customers` 
 
-> Your project might have a different structure! For example, you might have a system external to dagster doing the extract and load. In that case you would not have the `assets_raw.py`, instead the `dagster-dbt` integration would default to representing dbt sources as source assets automatically! You could still follow the event-driven  pattern of observing data versions for these source assets by using`AssetObservation(key=AssetKey(["my_dbt_source_schema", "my_dbt_source_table"]), ...)` inside of the job used to observe assets.
+- Raw extracted and loaded data: represented as the assets `orders`, `customers`. The extract and load is done through pandas + IO managers, and the resulting tables become dbt sources. The *extract* is handled by the source asset's IO manager, called `csv_reader`, using `resources.CSVIOManager.load_input` which extracts the raw data into a pandas dataframe. The dataframe is then *loaded* using the asset's IO manager, called `warehouse`, using  `DagsterDuckDBPandasIOManager.handle_output`. 
+
+
+- Transformed data: represented as the assets `orders_summary`, `customers_summary`. These assets are created by the `dagster-dbt` package and the transformations are done through dbt.
+
+> Your project might have a different structure! Two common variations:
+> (1) You might not use Dagster's IO managers to extract and load the data. Instead your code might orchestrate an external system, like Databricks, responsible for creating the raw data in the warehouse. In this case the asset functions `orders` and `customers` would be different, containing Databricks client code.
+> (2) You might mot have Dagster manage the extract and laod at all! Instead you might have a system external to dagster doing the extract and load. In that case you would not have `source_orders` and `source_customers` or the asset functions `orders` and `customers`. Instead, you would use `dagster-dbt` integration's default to represent dbt sources as source assets automatically. In this case `orders` and `customers` would be treated as source assets. How would you watch for updates? You could still follow the event-driven pattern of observing data versions for these source assets by using`AssetObservation(key=AssetKey(["my_dbt_source_schema", "my_dbt_source_table"]), ...)` inside of the job used to observe assets.
 
 Because it is common to have many source assets that are extracted and loaded in the same way, this project uses *asset factories* in `assets_raw.py` to dynamically generate the source assets (`source_orders`, `source_customers`) and raw loaded assets (`orders`, `customers`). 
 
@@ -64,9 +69,9 @@ Because it is common to have many source assets that are extracted and loaded in
 
 1. Why not `observable_source_assets`?
 
-One alternative to scheduling a frequent job that creates asset observations would be to use observable source assets. Observable source assets achieve a similar event-driven outcome. However with observable source assets each asset must launch a run to check for updates to themseleves, whereas one job run can create multiple asset observations.
+One alternative to scheduling a frequent job that creates asset observations would be to use observable source assets. Observable source assets achieve a similar event-driven outcome. However, with observable source assets each one must launch a run to check for an update, whereas in our example one job run can keep track of multiple source assets.
 
-For example, say you are reading from a kafka topic that contains events for multiple source assets. It is convenient to have one job read the event and assign the appropriate asset observation. If instead you used observable source assets, all of the  observable source assets would have to each check the event to see if applied. 
+For example, say you are reading from a kafka topic that contains events for multiple source assets. It is convenient to have one job read the event and assign the appropriate asset observation. If instead you used observable source assets, all of the  observable source assets would have to each check the event to see if it applied to them.
 
 2. Why not sensors?
 
