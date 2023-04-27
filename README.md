@@ -75,12 +75,14 @@ For example, say you are reading from a kafka topic that contains events for mul
 
 2. Why not sensors?
 
-Sensors are often used in Dagster for event driven workflows. They are a great mechanism for the simple case where you observe an event and then run a pre-defined pipeline. They do not require you to define a separate schedule or launch job runs to check for events.
+Sensors are often used in Dagster for event driven workflows. They are a great mechanism for the simple case where you observe an event and then run a pipeline. They do not require you to define a separate schedule or launch job runs to check for events.
 
 However, sensors have a few limitations for our desired goals:
 
-- Sensors can only launch runs of pre-defined jobs. For assets this means that sensors could only be used to update an asset job with a pre-defined asset selection. In our example, we want to dynamically decide what assets to update based on the external update we observe.
-
-- Sensors always launch runs, they can't _only_ identify a new data version. (Specifically, sensors yield `RunRequests` only job runs can create `AssetObservations `.) We want our event driven architecture to respond to events by notifying Dagster of new data, not by immediately processing the data. Sensors do not give the flexibility offered by lazy and eager materialization policies or stakeholder SLAs.
+- Sensors always launch runs, they can't _only_ identify a new data version. (Specifically, sensors yield `RunRequests`, only job runs can create `AssetObservations `.) We want our event driven architecture to respond to events by notifying Dagster of new data, not by immediately processing the data. Sensors do not give the flexibility offered by lazy and eager materialization policies or stakeholder SLAs.
 
 - Sensors have to run fast! Sometimes your code that checks for external updates might take longer than 60 seconds to run, and in that case executing the code in a job instead of within a sensor tick is the most robust option.
+
+3. What about partitions?
+
+This example does not use partitions. But if your external events are of the form "new *incremental* source data has arrived" it is possible to incorporate the incremental nature of this pipeline by using Dagster partitions. Partitions can either be pre-defined (using common time increments like hourly or weekly) or generated dynamically. If you use partitions, you would want to watch for events inside of a sensor, and then issue `RunRequests` for the updated assets and partition. As of Dagster 1.3.0 observable source assets do not support partitions, but this capability will be added in the future, allowing you to follow the pattern in this example of observing a source asset partition and then utilizing auto-materialization and freshness policies.
