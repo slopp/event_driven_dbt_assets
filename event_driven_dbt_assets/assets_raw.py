@@ -1,13 +1,24 @@
-from dagster import SourceAsset, asset, OpExecutionContext, AssetIn
+from dagster import SourceAsset, asset, OpExecutionContext, AssetIn, observable_source_asset, DataVersion
 import pandas as pd
 from typing import List
+from event_driven_dbt_assets.resources import CSVWatcher
 
 SOURCES = ["customers", "orders"]
 
-def fake_obs():
-    pass
+def source_asset_factory(source: str) -> observable_source_asset:
+     """ Given a source, create a sourcew asset representing the raw source file """
+     @observable_source_asset(
+         name=f"source_{source}",
+         io_manager_key="csv_reader"
+     )
+     def observed_source(context: OpExecutionContext, csv_mtime: CSVWatcher):
+         f""" source asset for {source} """
+         mtime = csv_mtime.get_mtime(source)
+         return DataVersion(str(mtime))
+     
+     return observed_source
 
-source_assets = [SourceAsset(key=f"source_{s}", io_manager_key="csv_reader", description=f"source asset for {s}",observe_fn=fake_obs) for s in SOURCES]
+source_assets = [source_asset_factory(s) for s in SOURCES]
 
 def asset_factory(source: str) -> asset:
     """ Given a source, create an asset representing a loaded table for the source """
